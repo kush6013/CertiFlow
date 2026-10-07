@@ -165,13 +165,14 @@ async function loadJobs() {
           </td>
           <td style="font-size: 0.8rem; color: var(--text-muted);">${createdDate}</td>
           <td>
-            <div style="display: flex; gap: 0.4rem;">
+            <div style="display: flex; gap: 0.4rem; align-items: center;">
               <button class="btn-secondary" style="padding: 0.35rem 0.65rem;" onclick="viewJobDetails('${j.id}')">View</button>
               ${j.success_count > 0 ? `
                 <a href="/api/v1/jobs/${j.id}/download" class="btn-success" title="Download all as ZIP">
                   📦 ZIP
                 </a>
               ` : ""}
+              <button class="btn-danger-sm" title="Delete job (Admin only)" onclick="promptDeleteJob('${j.id}')">🗑️</button>
             </div>
           </td>
         </tr>
@@ -315,4 +316,32 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+async function promptDeleteJob(jobId) {
+  const adminKey = prompt("🔒 Admin Authentication Required\nPlease enter the Admin Key to delete this job (default: admin123):");
+  if (adminKey === null) return;
+  if (!adminKey.trim()) {
+    showAlert("Admin key cannot be empty.", true);
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/v1/jobs/${jobId}`, {
+      method: "DELETE",
+      headers: {
+        "X-Admin-Key": adminKey.trim()
+      }
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.detail || "Deletion failed.");
+    }
+
+    showAlert(`✓ Job ${jobId.slice(0, 8)}... and associated certificates successfully deleted.`);
+    loadJobs();
+  } catch (err) {
+    showAlert(err.message, true);
+  }
 }

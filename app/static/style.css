@@ -170,6 +170,23 @@ body {
   background: #15803d;
 }
 
+.btn-danger-sm {
+  background: transparent;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-danger-sm:hover {
+  background: #fee2e2;
+  border-color: #dc2626;
+}
+
 /* Layout */
 .container {
   max-width: 1200px;

@@ -128,3 +128,73 @@ def test_job_timestamps_lifecycle(client):
     assert data["started_at"] is not None
     assert data["completed_at"] is not None
     assert data["updated_at"] is not None
+
+
+def test_delete_job_without_admin_key_fails(client):
+    """Deleting without X-Admin-Key header returns 403 Forbidden."""
+    # Create a job first
+    payload = {
+        "title": "Auth Protected Program",
+        "issuer_name": "Security Council",
+        "recipients": [{"name": "Auth User", "email": "auth@example.com"}]
+    }
+    create_res = client.post("/api/v1/jobs?sync=true", json=payload)
+    job_id = create_res.json()["job_id"]
+
+    res = client.delete(f"/api/v1/jobs/{job_id}")
+    assert res.status_code == 403
+    assert "Admin authentication required" in res.json()["detail"]
+
+
+def test_delete_job_with_invalid_admin_key_fails(client):
+    """Deleting with invalid X-Admin-Key header returns 403 Forbidden."""
+    payload = {
+        "title": "Invalid Key Program",
+        "issuer_name": "Security Council",
+        "recipients": [{"name": "Key User", "email": "key@example.com"}]
+    }
+    create_res = client.post("/api/v1/jobs?sync=true", json=payload)
+    job_id = create_res.json()["job_id"]
+
+    res = client.delete(f"/api/v1/jobs/{job_id}", headers={"X-Admin-Key": "wrong-key"})
+    assert res.status_code == 403
+
+
+def test_delete_nonexistent_job_as_admin(client):
+    """Deleting a non-existent job with valid admin credentials returns 404 Not Found."""
+    from app.config import ADMIN_API_KEY
+    res = client.delete("/api/v1/jobs/non-existent-uuid", headers={"X-Admin-Key": ADMIN_API_KEY})
+    assert res.status_code == 404
+
+
+def test_delete_job_as_admin_success(client):
+    """Deleting a job as admin deletes database record and cleans up storage files."""
+    from pathlib import Path
+    from app.config import ADMIN_API_KEY
+
+    payload = {
+        "title": "Job to Delete",
+        "issuer_name": "Cleanup Org",
+        "recipients": [{"name": "Delete Me", "email": "del@example.com"}]
+    }
+    create_res = client.post("/api/v1/jobs?sync=true", json=payload)
+    assert create_res.status_code == 202
+    job_id = create_res.json()["job_id"]
+
+    # Verify job and certificate file exist
+    job_res = client.get(f"/api/v1/jobs/{job_id}")
+    assert job_res.status_code == 200
+    job_data = job_res.json()
+    assert len(job_data["certificates"]) == 1
+    # Check certificate status is success
+    assert job_data["status"] == "completed"
+
+    # Now delete as admin
+    del_res = client.delete(f"/api/v1/jobs/{job_id}", headers={"X-Admin-Key": ADMIN_API_KEY})
+    assert del_res.status_code == 200
+    assert del_res.json()["success"] is True
+
+    # Subsequent GET must return 404
+    get_after = client.get(f"/api/v1/jobs/{job_id}")
+    assert get_after.status_code == 404
+

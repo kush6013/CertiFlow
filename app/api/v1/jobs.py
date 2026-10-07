@@ -3,10 +3,11 @@ import zipfile
 import re
 from pathlib import Path
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status, Query
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status, Query, Header
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from app.config import ADMIN_API_KEY
 from app.database import get_db
 from app.schemas import (
     BulkJobCreateRequest,
@@ -19,10 +20,21 @@ from app.crud import (
     create_job_with_recipients,
     get_job_by_id,
     list_jobs,
+    delete_job,
 )
 from app.tasks import process_bulk_certificate_job
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
+
+
+def verify_admin(x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key")):
+    """Dependency to enforce admin authentication for administrative endpoints."""
+    if not x_admin_key or x_admin_key != ADMIN_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin authentication required. Invalid or missing X-Admin-Key header."
+        )
+    return True
 
 
 def _sanitize_filename(name: str) -> str:
@@ -182,3 +194,26 @@ def download_job_certificates_zip(job_id: str, db: Session = Depends(get_db)):
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{zip_filename}"'}
     )
+
+
+@router.delete(
+    "/{job_id}",
+    summary="Delete a certificate generation job (Admin only)",
+    description="Deletes the job, its certificate records, and cleans up generated PDF files from storage. Requires X-Admin-Key header.",
+    status_code=status.HTTP_200_OK
+)
+def delete_job_by_id(
+    job_id: str,
+    _admin: bool = Depends(verify_admin),
+    db: Session = Depends(get_db)
+):
+    deleted = delete_job(db, job_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job with ID '{job_id}' not found."
+        )
+    return {
+        "success": True,
+        "message": f"Job {job_id} and associated certificates successfully deleted."
+    }

@@ -112,11 +112,15 @@ HTTP Request (Client / Dashboard)
 | `GET` | `/api/v1/jobs` | List all certificate generation jobs (paginated) | `200 OK` |
 | `GET` | `/api/v1/jobs/{job_id}` | Check job progress, status, timestamps, and recipient details | `200 OK` |
 | `GET` | `/api/v1/jobs/{job_id}/download` | Download all successfully generated certificates as a ZIP | `200 OK` |
+| `DELETE` | `/api/v1/jobs/{job_id}` | Delete a job and associated files (*Admin only*, requires `X-Admin-Key`) | `200 OK` / `403` |
 | `GET` | `/api/v1/certificates/{id}` | Retrieve individual certificate metadata | `200 OK` |
 | `GET` | `/api/v1/certificates/{id}/download` | Download single certificate PDF | `200 OK` |
 | `GET` | `/api/v1/certificates/verify/{code}` | Public verification of certificate authenticity | `200 OK` |
 
 Interactive OpenAPI documentation is accessible at `/docs` (Swagger UI) and `/redoc` (ReDoc).
+
+> **Admin Authentication**: The `DELETE /api/v1/jobs/{job_id}` endpoint is guarded by the `X-Admin-Key` header (configurable via `ADMIN_API_KEY` env var, defaults to `admin123`). Unauthorized requests return `403 Forbidden`.
+
 
 ---
 

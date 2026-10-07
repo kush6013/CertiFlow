@@ -1,4 +1,5 @@
 import secrets
+from pathlib import Path
 from datetime import datetime, date, timezone
 from typing import List, Optional
 from sqlalchemy.orm import Session
@@ -57,6 +58,29 @@ def create_job_with_recipients(db: Session, job_data: BulkJobCreateRequest) -> G
 
 def get_job_by_id(db: Session, job_id: str) -> Optional[GenerationJob]:
     return db.query(GenerationJob).filter(GenerationJob.id == job_id).first()
+
+
+def delete_job(db: Session, job_id: str) -> bool:
+    """
+    Deletes a job, cascade-deletes certificate records, and removes generated PDF files from disk.
+    """
+    job = get_job_by_id(db, job_id)
+    if not job:
+        return False
+
+    # Remove generated PDF files associated with this job
+    for cert in job.certificates:
+        if cert.file_path:
+            try:
+                p = Path(cert.file_path)
+                if p.exists():
+                    p.unlink()
+            except OSError:
+                pass
+
+    db.delete(job)
+    db.commit()
+    return True
 
 
 def list_jobs(db: Session, skip: int = 0, limit: int = 50) -> List[GenerationJob]:

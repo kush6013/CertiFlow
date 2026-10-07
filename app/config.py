@@ -20,3 +20,6 @@ APP_DESCRIPTION = (
 )
 APP_VERSION = "1.0.0"
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
+
+# Admin security key for administrative actions (e.g. deleting jobs)
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "admin123")
