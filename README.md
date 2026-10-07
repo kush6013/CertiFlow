@@ -366,19 +366,3 @@ To scale CertiFlow for high-volume, multi-tenant production environments, the ar
 
 ---
 
-## 20. Interview Talking Points
-
-When discussing this project during an interview:
-
-### A. Why return HTTP 202 Accepted instead of processing synchronously?
-> *"Depending on PDF complexity, batch size, and hardware, synchronous PDF generation can hold HTTP connections open for several seconds and increase timeout risk. Returning HTTP 202 Accepted allows the client to receive a job ID immediately while generation continues in a background task. The client can then poll the status endpoint to monitor progress."*
-
-### B. Why use an independent database session in the background worker?
-> *"FastAPI request sessions close when the response finishes. If a background worker shares that session, it causes 'Session is closed' errors. I solved this by passing only the primitive `job_id` into the worker. The worker instantiates its own isolated `SessionLocal()` inside a `try...finally` block, ensuring clean commits and guaranteed closure."*
-
-### C. How does failure isolation work?
-> *"Each recipient is processed inside an individual `try...except` boundary. If recipient #2 fails due to invalid parameters or rendering issues, its record is marked `failed` with the exact error message. Processing continues uninterrupted for recipient #3, and the parent job marks `partial_success`. Clients can inspect exactly which certificates succeeded and which failed."*
-
-### D. How would you scale this system for higher workloads?
-> *(Future Scaling Roadmap)*:
-> *"For a much larger production workload, I would replace process-bound BackgroundTasks with a durable queue such as Celery/RQ backed by Redis/RabbitMQ, migrate from SQLite to PostgreSQL, and move generated files to object storage with scalable download mechanisms."*
