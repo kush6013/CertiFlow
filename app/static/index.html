@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CertiFlow — Bulk Certificate Generation & Verification Platform</title>
+  <link rel="icon" type="image/png" href="/static/logo.png">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="navbar">
+    <div class="logo-group">
+      <img src="/static/logo.png" alt="CertiFlow Logo" class="brand-logo-img">
+      <div>
+        <div class="brand-title">CertiFlow</div>
+        <div class="brand-subtitle">Bulk Certificate Generation & Verification Platform</div>
+      </div>
+    </div>
+    <div class="nav-actions">
+      <a href="/docs" target="_blank" class="nav-link">📖 Swagger OpenAPI Docs</a>
+      <a href="/redoc" target="_blank" class="nav-link">📘 Redoc</a>
+      <button onclick="openVerifyModal()" class="btn-secondary">🔍 Verify Credential</button>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Hero Banner -->
+    <section class="hero">
+      <h1>Automated Bulk Certificate Generation</h1>
+      <p>Issue hundreds of cryptographically-coded, high-resolution vector PDF certificates in seconds with background task processing, fault isolation, and verification tracking.</p>
+      <div class="hero-stats">
+        <div class="stat-box">
+          <div class="stat-value" id="stat-total-jobs">0</div>
+          <div class="stat-label">Total Jobs</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="stat-total-certs">0</div>
+          <div class="stat-label">Certificates Processed</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="stat-success-rate">100%</div>
+          <div class="stat-label">Success Rate</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Create Job Section -->
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Create Bulk Generation Job</h2>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">Provide certificate details and recipient list. Jobs are processed asynchronously in the background.</p>
+        </div>
+        <div class="sample-buttons">
+          <button type="button" class="btn-pill" onclick="loadSamplePreset('standard')">✨ Load Sample (5 Students)</button>
+          <button type="button" class="btn-pill" onclick="loadSamplePreset('large')">⚡ Load Bulk (15 Recipients)</button>
+          <button type="button" class="btn-pill" onclick="loadSamplePreset('fault')">🧪 Load Mixed Fault Test</button>
+        </div>
+      </div>
+
+      <div id="alert-box"></div>
+
+      <form id="job-form" onsubmit="handleJobSubmit(event)">
+        <div class="grid-2">
+          <div class="form-group">
+            <label for="title">Certificate Title / Event / Program *</label>
+            <input type="text" id="title" required placeholder="e.g. Advanced Backend Engineering Masterclass">
+          </div>
+          <div class="form-group">
+            <label for="issuer_name">Issuer Organization / Authority *</label>
+            <input type="text" id="issuer_name" required placeholder="e.g. Acme Tech Institute">
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label for="issue_date">Date of Issuance</label>
+            <input type="date" id="issue_date">
+          </div>
+          <div class="form-group">
+            <label for="processing_mode">Processing Mode</label>
+            <select id="processing_mode">
+              <option value="async">Background Task (Recommended for bulk)</option>
+              <option value="sync">Synchronous (Immediate response)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Certificate Body Description</label>
+          <input type="text" id="description" placeholder="For demonstrated excellence and successful completion of all program requirements.">
+        </div>
+
+        <div class="form-group">
+          <label for="recipients_json">
+            Recipients JSON Array * <span style="font-weight: 400; color: var(--text-muted);">(Each object must have "name" and "email", optional "custom_attributes")</span>
+          </label>
+          <textarea id="recipients_json" rows="8" required placeholder='[&#10;  {"name": "Alice Johnson", "email": "alice@example.com", "custom_attributes": {"grade": "A+", "track": "Systems"}},&#10;  {"name": "Bob Smith", "email": "bob@example.com", "custom_attributes": {"grade": "A", "track": "AI"}}&#10;]'></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem;">
+          <button type="button" class="btn-secondary" onclick="resetForm()">Clear</button>
+          <button type="submit" class="btn-primary" id="submit-btn">
+            🚀 Submit Bulk Generation Job
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Job History Section -->
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Generation Jobs History</h2>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">Real-time tracking of generation progress, status, and download links.</p>
+        </div>
+        <button class="btn-secondary" onclick="loadJobs()">🔄 Refresh</button>
+      </div>
+
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Job ID / Program</th>
+              <th>Issuer</th>
+              <th>Status</th>
+              <th>Progress</th>
+              <th>Recipients</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="jobs-table-body">
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--text-muted);">Loading jobs...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Job Details Modal -->
+  <div class="modal-overlay" id="detail-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-title">Job Details</h3>
+        <button class="close-btn" onclick="closeModal('detail-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-meta" style="margin-bottom: 1.5rem;"></div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <h4 style="color: var(--secondary);">Recipient Certificates</h4>
+          <a id="modal-zip-link" href="#" class="btn-secondary" style="font-size: 0.8rem; display: none;">📦 Download All (ZIP)</a>
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Recipient</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Code</th>
+                <th>Details / Error</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="modal-cert-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verification Modal -->
+  <div class="modal-overlay" id="verify-modal">
+    <div class="modal-content" style="max-width: 550px;">
+      <div class="modal-header">
+        <h3>Verify Certificate Authenticity</h3>
+        <button class="close-btn" onclick="closeModal('verify-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="verify-code-input">Enter Certificate Code</label>
+          <input type="text" id="verify-code-input" placeholder="e.g. CERT-A1B2-C3D4">
+        </div>
+        <button class="btn-primary" style="width: 100%; justify-content: center;" onclick="performVerification()">
+          🔍 Verify Now
+        </button>
+        <div id="verify-result" style="margin-top: 1.5rem;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
